@@ -1,0 +1,178 @@
+---
+title: "Script used for tartessos analysis explained step by step."
+author: "Ana Belén Romero-Losada, Francisco J. Romero-Campero"
+date: "Feb, 2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Used packages. 
+
+Load the packages that are used in this script. Several Bioconductor packages are used, such as *FactoMineR* and *factoextra* for multivariant analyses like Principal Component Analyses and hierarchical clustering,*ballgown* and *limma* packages for reading the transcriptomic data and for executing the differential expression analysis, or *clusterProfiler* and *pathview* for performing enrichment analyses in GO terms and metabolic pathways in KEGG, respectively. 
+
+
+```{r, echo= TRUE, results = 'hide'}
+
+library(FactoMineR)
+library(factoextra)
+library(ballgown)
+library(limma)
+library(clusterProfiler)
+library(pathview)
+
+```
+
+Additionaly, two CRAN packages are required for executing this script: ggplots and seqinr. Ggplots will be used to generate certain plots and seqinr is required to work with biological sequences. 
+
+```{r, echo= TRUE, results = 'hide'}
+
+library(gplots)
+library(seqinr)
+
+```
+
+Finally, the annotation packages included in tartessos_RNAseq github folder need to be installed and loaded before starting the analysis. 
+
+```{r, echo= TRUE, results = 'hide'}
+
+install.packages("packages/org.Hlacustris.eg.db",repos = NULL)
+install.packages("packages/TxDb.Hlacustris.NCBI",repos = NULL)
+library(org.Hlacustris.eg.db)
+library(TxDb.Hlacustris.NCBI)
+
+```
+
+
+#Load genome sequence data 
+
+Sequences and their names will be extracted from *haematococcus_lacustris.fa* which contains the sequenced genome of **Haematococcus lacustris**.
+
+```{r, echo = TRUE, eval = TRUE}
+
+hlacustris.info <- read.fasta(file = "haematococcus_lacustris.fa",seqtype = "DNA")
+hlacustris.seqs <- getSequence(hlacustris.info)
+names(hlacustris.seqs) <- getName(hlacustris.info)
+
+
+```
+
+Gene names are extracted from TxDb package and all the information is gathered in the same data frame.
+
+```{r, echo = TRUE, eval = TRUE}
+
+txdb <- TxDb.Hlacustris.NCBI
+hlacustris.genes <- as.data.frame(genes(txdb))
+
+```
+
+
+#Differential expression analysis.  
+
+Before starting the analysis, gene expression data has to be loaded.
+
+```{r, echo = TRUE, eval = TRUE}
+
+gene.expression.data <- read.table(file = "gene_expression.tsv",header = T,sep = "\t")
+gene.expression <- as.matrix(gene.expression.data[,2:5])
+rownames(gene.expression) <- gene.expression.data$Gene
+log.gene.expression <- log2(gene.expression+1)
+head(log.gene.expression)
+
+```
+
+The first step in a differential expression analysis is the specification of the experimental design. It is indicated in a factorial way, meaning that the first condition is represented by the number 1 and the second one by the number 2. In that way, for example, there are as many 1 as there are replicates of the first condition.
+
+```{r, echo = TRUE, eval = TRUE}
+
+factor.experimental.design <- c(1,1,2,2)
+limma.experimental.design <- model.matrix(~ -1+factor(factor.experimental.design))
+colnames(limma.experimental.design) <- c("NO3_2mM", "NO3_15mM")
+
+```
+
+Then, the stimated gene expression levels of each gene are adjusted to a linear model (using the **lmFit** function included in *limma*) considering the experimental design specificated.
+
+```{r, echo = TRUE, eval = TRUE}
+
+linear.fit <- lmFit(log.gene.expression, limma.experimental.design)
+
+```
+
+The contrast that will be performed is indicated using **makeContrast** function, and the fold change and p-value are calculated with the functions **constrasts.fit** and **eBayes**. 
+
+```{r, echo = TRUE, eval = TRUE}
+
+contrast.matrix <- makeContrasts(NO3_2mM-NO3_15mM,
+                                 levels=c("NO3_2mM", "NO3_15mM"))
+
+contrast.linear.fit <- contrasts.fit(linear.fit, contrast.matrix)
+contrast.results <- eBayes(contrast.linear.fit)
+
+```
+
+Finally, using the **topTable** function, the results from the differential expressed genes analysis can be extracted.
+
+```{r, echo = TRUE, eval = TRUE}
+
+degs.results <- topTable(contrast.results, number=nrow(log.gene.expression),coef=1,sort.by="logFC")
+head(degs.results)
+
+```
+
+To interpret the results in a easier way, the activated and repressed genes can be identificated considering a q-value and fold change treshold. In this case, the fold change treshold selected is 2 and the q-value treshold is 0.05.
+
+```{r, echo = TRUE, eval = TRUE}
+
+fold.change <- degs.results$logFC
+q.values <- degs.results$adj.P.Val
+genes.ids <- rownames(degs.results)
+
+names(fold.change) <- genes.ids
+names(q.values) <- genes.ids
+
+fc.threshold <- 2
+q.val.threshold <- 0.05
+
+activated.genes <- genes.ids[fold.change > log2(fc.threshold) & q.values < q.val.threshold]
+repressed.genes <- genes.ids[fold.change < - log2(fc.threshold) & q.values < q.val.threshold]
+
+length(activated.genes)
+length(repressed.genes) 
+
+```
+
+Considering the selected tresholds, the number of activates genes is 414 and the number of repressed genes is 5348. This results can be represented in a volcano plot. 
+
+```{r, echo = TRUE, eval = TRUE}
+
+log10.qval <- -log10(q.values)
+
+plot(fold.change,log10.qval,pch=19,cex=0.5,col="grey",
+     xlim=c(-15,15), ylim=c(0,3),
+     xlab="Log2 Fold Change", ylab="-log10(q-value)",cex.lab=1.5)
+points(fold.change[activated.genes],log10.qval[activated.genes],cex=0.7,col="red",pch=19)
+points(fold.change[repressed.genes],log10.qval[repressed.genes],cex=0.7,col="blue",pch=19)
+
+```
+
+
+#Correspondence between genome notation and NCBI notation.
+
+Genome notation doesn't match with NCBI notation, which can lead to confusion at some steps of the analysis. 
+
+```{r, echo = TRUE, eval = TRUE}
+
+halan.gfh.correspondence <- read.table(file="gfh_halan_correspondence.tsv",sep="\t",as.is=T)
+head(halan.gfh.correspondence)
+
+halan <- halan.gfh.correspondence$V2
+gfh <- halan.gfh.correspondence$V1
+names(halan) <- gfh
+names(gfh) <- halan
+
+```
+
+#KEEG pathway enrichment
