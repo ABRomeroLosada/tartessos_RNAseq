@@ -25,7 +25,7 @@ library(pathview)
 
 ```
 
-Additionaly, two CRAN packages are required for executing this script: ggplots and seqinr. Ggplots will be used to generate certain plots and seqinr is required to work with biological sequences. 
+Additionally, two CRAN packages are required for executing this script: ggplots and seqinr. Ggplots will be used to generate certain plots and seqinr is required to work with biological sequences. 
 
 ```{r, echo= TRUE, results = 'hide'}
 
@@ -176,3 +176,65 @@ names(gfh) <- halan
 ```
 
 #KEEG pathway enrichment
+
+KO ids are extracted from *org.Hlacustris.eg.db*.
+
+```{r, echo = TRUE, eval = TRUE}
+
+hlac.ko <- select(org.Hlacustris.eg.db,columns = c("KO"),keys=keys(org.Hlacustris.eg.db,keytype = "GID"))
+ko.universe <- hlac.ko$KO
+ko.universe <- ko.universe[!is.na(ko.universe)]
+
+```
+
+Activated and repressed genes are gathered with their corresponding KO id.
+
+```{r, echo = TRUE, eval = TRUE}
+
+activated.target.ko <- subset(hlac.ko,GID %in% gfh[activated.genes])$KO
+activated.target.ko <- activated.target.ko[!is.na(activated.target.ko)]
+
+repressed.target.ko <- subset(hlac.ko,GID %in% gfh[repressed.genes])$KO
+repressed.target.ko <- repressed.target.ko[!is.na(repressed.target.ko)]
+
+```
+
+Now the enrichment can be achieved using the **enrichKEGG** function included in *pathway* package. The results are represented in a simple barplot. Additionally, the results can be saved in a **.txt** file.
+ 
+```{r, echo = TRUE, eval = TRUE}
+
+pathway.enrichment <- enrichKEGG(gene = activated.target.ko, organism = "ko", 
+                                 universe = ko.universe,qvalueCutoff = 0.05)
+
+barplot(height = pathway.enrichment,showCategory = 11)
+
+write.table(x = as.data.frame(pathway.enrichment),
+            file = "pathway_enrichment/pathway_activated.tsv",
+            quote = F,sep = "\t",row.names = F)
+
+```
+
+## Graphical representation of pathways
+
+At first place, a new variable called *genes.pathway* is defined. Each element of this variable correspond to a different gene and it will contain a different number depending on whether or not that gene is activated. The value -1 will be given to repressed genes, +1 to activated ones and 0 to neutral ones. 
+
+```{r, echo = TRUE, eval = TRUE}
+
+genes.pathway <- rep(0, length(ko.universe))
+names(genes.pathway) <- ko.universe
+
+genes.pathway[activated.target.ko] <- 1
+genes.pathway[repressed.target.ko] <- -1
+
+```
+
+Then this variable can be used to generate the desirable KEGG pathway (for example ko00906) where the enzimes that correspond to activated and repressed genes will be colored differently.
+
+```{r, echo = TRUE, eval = TRUE}
+
+pathview(gene.data = sort(genes.pathway,decreasing = TRUE),
+         kegg.dir ="pathway_enrichment/", pathway.id = "ko00906",
+         species = "ko",
+         limit = list(gene=max(abs(genes.pathway)), cpd=1))
+
+```
