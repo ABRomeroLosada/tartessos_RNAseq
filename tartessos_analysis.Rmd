@@ -11,13 +11,11 @@ knitr::opts_chunk$set(echo = TRUE)
 
 #Used packages. 
 
-Load the packages that are used in this script. Several Bioconductor packages are used, such as *FactoMineR* and *factoextra* for multivariant analyses like Principal Component Analyses and hierarchical clustering,*ballgown* and *limma* packages for reading the transcriptomic data and for executing the differential expression analysis, or *clusterProfiler* and *pathview* for performing enrichment analyses in GO terms and metabolic pathways in KEGG, respectively. 
+Load the packages that are used in this script. Several Bioconductor packages are used, such as *ballgown* and *limma* packages for reading the transcriptomic data and for executing the differential expression analysis, or *clusterProfiler* and *pathview* for performing enrichment analyses in GO terms and metabolic pathways in KEGG, respectively. 
 
 
 ```{r, echo= TRUE, results = 'hide'}
 
-library(FactoMineR)
-library(factoextra)
 library(ballgown)
 library(limma)
 library(clusterProfiler)
@@ -238,3 +236,112 @@ pathview(gene.data = sort(genes.pathway,decreasing = TRUE),
          limit = list(gene=max(abs(genes.pathway)), cpd=1))
 
 ```
+
+
+# Identification of transcription factors and promoter sequences. 
+
+##Identification of transcription factor genes aspirants.
+
+In order to make the analysis easier, a simple function is created to extract the genes which PFAM id match with the target one. 
+
+```{r, echo = TRUE, eval = TRUE}
+
+extract.tf <- function(annotation, pfam.id)
+{
+  return(unique(subset(annotation,PFAM == pfam.id)$GENES))
+}
+
+```
+
+The PFAM ids that correspond to each gene are gathered in the annotation file, so it needs to be loaded.
+
+```{r, echo = TRUE, eval = TRUE}
+
+haematococcus.annotation <- read.table(file = "haematoccocus_functional_annotation.csv",
+                                       header = T,as.is = T,fill = T)
+                                       
+```
+
+Then, the PFAM corresponding to the the target transcription factor is searched manually. For example, PF00847 corresponds the AP2 transcription factors family, so it is used to find the genes inside haematococcus genome that can belong to this family.
+
+```{r, echo = TRUE, eval = TRUE}
+
+AP2.genes <- extract.tf(annotation = haematococcus.annotation,pfam.id = "PF00847")
+AP2.genes
+length(AP2.genes)
+
+```
+
+However, it can also be interesting to find out if any of the AP2 transcription factors family aspirants genes is activated or repressed under our experiment conditions. 
+
+```{r, echo = TRUE, eval = TRUE}
+
+ap2.activated <- length(intersect(activated.genes, halan[AP2.genes]))
+ap2.repressed <- length(intersect(repressed.genes, halan[AP2.genes]))
+ap2.non.diff <- length(AP2.genes) - ap2.activated - ap2.repressed
+
+```
+
+This analysis is executed to all the possible transcription factors families.
+
+
+# Extraction of promoter sequences of targets genes.
+
+The following function is used to achieve that goal. To a given list of gene names, it extracts their promoter sequences (1000 bp upstream from TSS) using the sequenced genome.
+
+```{r, echo = TRUE, eval = TRUE}
+
+promoter.sequence <- function(genes.names, genes.info, genome.seqs,file.name)
+{
+  genes.of.interest <- subset(genes.info, gene_id %in% genes.names)
+  
+  promoter.seqs <- vector(mode="list",length=nrow(genes.of.interest))
+  names(promoter.seqs) <- genes.of.interest$gene_id
+  
+  for(i in 1:nrow(genes.of.interest))
+  {
+    current.seq.id <- as.character(genes.of.interest$seqnames[i])
+    current.seq <- genome.seqs[current.seq.id]
+    current.strand <- as.character(genes.of.interest$strand[i])
+    
+    if(current.strand == "+")
+    {
+      tss <- genes.of.interest$start[i]
+      if(tss > 1000)
+      {
+        promoter.seqs[[i]] <-current.seq[[1]][(tss-1000):(tss-1)]  
+      } else
+      {
+        promoter.seqs[[i]] <-current.seq[[1]][1:(tss-1)]
+      }
+      
+    } else if (current.strand == "-")
+    {
+      tss <- genes.of.interest$end[i]
+      promoter.seqs[[i]] <- comp(rev(current.seq[[1]][(tss+1):(tss+1000)]))
+    }
+  }
+  
+  write.fasta(sequences = promoter.seqs,
+              names = names(promoter.seqs),
+              file.out = file.name)
+  return(promoter.seqs)
+}
+
+```
+
+For example, it was used with the carotenoids biosynthesis key enzime genes. 
+
+```{r, echo = TRUE, eval = TRUE}
+
+carotenoids.genes <- c("HaLaN_05222", "HaLaN_06917", "HaLaN_19207", "HaLaN_29333", "HaLaN_01499", "HaLaN_15035",
+                       "HaLaN_05151", "HaLaN_15758", "HaLaN_04875")
+
+promoter.sequence(genes.names = carotenoids.genes, 
+                  genes.info = hlacustris.genes , 
+                  genome.seqs = hlacustris.seqs,
+                  file.name ="carotenoids_promoters.fa")
+
+```
+
+
