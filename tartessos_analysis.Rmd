@@ -291,7 +291,10 @@ The following function is used to achieve that goal. To a given list of gene nam
 
 ```{r, echo = TRUE, eval = TRUE}
 
-promoter.sequence <- function(genes.names, genes.info, genome.seqs,file.name)
+promoter.sequence <- function(genes.names, #Halan gene name 
+                              genes.info, # Gene info variable created before
+                              genome.seqs, #genome seqs variable created before
+                              file.name) #Output name
 {
   genes.of.interest <- subset(genes.info, gene_id %in% genes.names)
   
@@ -341,6 +344,207 @@ carotenoids.promoters <- promoter.sequence(genes.names = carotenoids.genes,
                         genes.info = hlacustris.genes , 
                         genome.seqs = hlacustris.seqs,
                         file.name ="carotenoids_promoters.fa")
+
+```
+
+##Functions for for specific pathways analysis.
+
+###Barplots
+
+Two different functions were created in order to generate barplots representing the expression level of specific genes in both conditions. One of them, receive as input the genome notation type name of the target gene.
+
+```{r, echo = TRUE, eval = TRUE}
+
+barplot.halan.gene <- function(gene.id, #Halan name of target gene
+                               gene.expression) #gene expression matrix
+{
+  #Extract the mean expression level of the target gene
+    expression.mean.2mM <- mean(unlist(gene.expression[gene.id,
+                                                   c("NO3_2mM_1", "NO3_2mM_2")]))
+    expression.mean.15mM <- mean(unlist(gene.expression[gene.id,
+                                                    c("NO3_15mM_1", "NO3_15mM_2")]))
+    means <- c(expression.mean.15mM,expression.mean.2mM)
+  #Extract the standard deviation
+    expression.sd.2mM <- sd(unlist(gene.expression[gene.id,
+                                               c("NO3_2mM_1", "NO3_2mM_2")]))
+    expression.sd.15mM <- sd(unlist(gene.expression[gene.id,
+                                                c("NO3_15mM_1", "NO3_15mM_2")]))
+    sds <- c(expression.sd.15mM,expression.sd.2mM)
+    
+  #Generate a png file containing the resulting barplot
+    #png(filename = paste0(gene.id,".png"),width = 300)
+    #par(lwd=3)
+    xpos <- barplot(means,col=c("springgreen4","firebrick2"),
+                    names.arg = c("15mM","2mM"),las=2,cex.names = 1.5,
+                    ylim=c(0,max(means+sds)*1.2),cex.axis = 1.5,lwd=3,
+                    main=gene.id,
+                    cex.main=2)
+    arrows(x0 = xpos,y0 = means + sds, x1 = xpos, y1 = means - sds,length = 0.1,
+           code = 3,angle=90,lwd=2)
+    #dev.off()
+}
+```
+
+The gene **HaLaN_03814** can be used as an example. 
+
+```{r, echo = TRUE, eval = TRUE}
+
+barplot.halan.gene(gene.id="HaLaN_03814",gene.expression=gene.expression)
+
+```
+
+However, the other one receive as input the KO id of a target enzyme. If the KO id is related to several genes, it will generate a different barplot for each of them. Previously, a variable containing all the Haematococcus genes with their related KO ids needs to be created. This data can be extracted from the **org.Hlacustris.eg.db** package.
+
+```{r, echo = TRUE, eval = TRUE}
+
+hlacustris.ko <- select(org.Hlacustris.eg.db,columns = c("GID","KO"),
+                        keys=keys(org.Hlacustris.eg.db,keytype = "GID"))
+
+```
+
+```{r, echo = TRUE, eval = TRUE}
+
+
+barplot.enzyme.ko <- function(ko, #KO of target enzyme
+                              enzyme.name, #Name that will appear in output 
+                              map.gfh.halan, #halan variable
+                              gene.expression, #gene expression matrix
+                              hlacustris.ko, #KO ids vs gene names variable created before
+                              gene.name) #Name that will appear in output 
+                              
+{
+  #find the genes related to the target KO
+  halan.gene.names <- intersect(map.gfh.halan[subset(hlacustris.ko,KO == ko)$GID],
+                                rownames(gene.expression))
+  #For each gene, extract mean expression level, extract sd values and generate a barplot. 
+  for(i in 1:length(halan.gene.names))
+  {
+    enzyme.mean.2mM <- mean(unlist(gene.expression[halan.gene.names[i],
+                                                   c("NO3_2mM_1", "NO3_2mM_2")]))
+    enzyme.mean.15mM <- mean(unlist(gene.expression[halan.gene.names[i],
+                                                    c("NO3_15mM_1", "NO3_15mM_2")]))
+    means <- c(enzyme.mean.15mM,enzyme.mean.2mM)
+    
+    enzyme.sd.2mM <- sd(unlist(gene.expression[halan.gene.names[i],
+                                               c("NO3_2mM_1", "NO3_2mM_2")]))
+    enzyme.sd.15mM <- sd(unlist(gene.expression[halan.gene.names[i],
+                                                c("NO3_15mM_1", "NO3_15mM_2")]))
+    sds <- c(enzyme.sd.15mM,enzyme.sd.2mM)
+    
+    
+    #png(filename = paste(c(enzyme.name,i,".png"),collapse=""),width = 300)
+    #par(lwd=3)
+    xpos <- barplot(means,col=c("springgreen4","firebrick2"),
+                    names.arg = c("15mM","2mM"),las=2,cex.names = 1.5,
+                    ylim=c(0,max(means+sds)*1.2),cex.axis = 1.5,lwd=3,
+                    main=paste(gene.name,halan.gene.names[i],sep = " - "),
+                    cex.main=2)
+    arrows(x0 = xpos,y0 = means + sds, x1 = xpos, y1 = means - sds,length = 0.1,
+           code = 3,angle=90,lwd=2)
+    #dev.off()
+  }
+  
+  return(halan.gene.names)
+}
+
+```
+
+Phytoene synthase enzyme can be used as an example: 
+
+```{r, echo = TRUE, eval = TRUE}
+
+barplot.enzyme.ko(ko="K02291",enzyme.name = "0_PS", map.gfh.halan = halan, 
+                  gene.expression = gene.expression,gene.name="PSY",
+                  hlacustris.ko=hlacustris.ko)
+
+```
+
+###Heatmaps.
+
+Heatmaps were created to show the expression level of each enzyme represented in the figures included in the final paper. The function used to generate them recieve as input the KO id of a desirable enzyme and, as the **barplot.enzyme.ko** function does, it will generate a different heatmap for each gene related to the target KO.
+
+```{r, echo = TRUE, eval = TRUE}
+heatmap.enzyme.ko <- function(ko, #KO id of the target enzyme
+                              enzyme.name, #Name that will appear in output
+                              map.gfh.halan, #halan variable
+                              gene.expression, #gene expression matrix
+                              precision)
+
+{
+  #determine the color gradient from positive to negative values
+  pos.colfunc <- colorRampPalette(c("white","firebrick2"))
+  pos.colors <- pos.colfunc(precision)
+  
+  neg.colfunc <- colorRampPalette(c("white","springgreen4"))
+  neg.colors <- neg.colfunc(precision)
+  
+  #find the genes related to the target KO id.
+  halan.gene.names <- intersect(map.gfh.halan[subset(hlacustris.ko,KO == ko)$GID],rownames(gene.expression))
+  
+  #Choose min. and max. values of fc.
+  fc.max <- 0
+  fc.min <- 20
+    
+  #for each gene related to the target KO..
+  for(i in 1:length(halan.gene.names))
+  {
+    #extract its mean expression level
+    enzyme.mean.2mM <- mean(unlist(gene.expression[halan.gene.names[i],c("NO3_2mM_1", "NO3_2mM_2")]))
+    enzyme.mean.15mM <- mean(unlist(gene.expression[halan.gene.names[i],c("NO3_15mM_1", "NO3_15mM_2")]))
+    #calculate fc
+    fc <- enzyme.mean.2mM/enzyme.mean.15mM
+    #adjust the color gradient level
+    if(fc >= 1)
+    {
+      if(fc >= fc.max)
+      {
+        fc.max <- fc
+      }
+      
+      if(round(fc*10) < precision)
+      {
+        cols <- pos.colors[round(fc*10)]
+      } else
+      {
+        cols <- pos.colors[precision]
+      }
+      
+    } else
+    {
+      if(fc <= fc.min)
+      {
+        fc.min <- fc
+      }
+      
+      if(round(10/fc) < precision)
+      {
+        cols <- neg.colors[round(10/fc)]
+      } else
+      {
+        cols <- neg.colors[precision]
+      }
+      
+    }
+    
+    #Generate the heatmap
+    #png(filename = paste(c("heatmap_",enzyme.name,i,".png"),collapse=""))
+    plot(x=0,y=0,col="white",axes=F,xlab="",ylab="",ylim=c(0,10),xlim=c(0,10))
+    polygon(x = c(2,8,8,2),y=c(2,2,8,8),lwd=6,col = cols)
+   # dev.off()
+  }
+  
+  return(list(halan.gene.names,fc.max, fc.min, 1/fc.min))
+}
+
+```
+
+Once again, phytoene synthase will be used as an example: 
+
+```{r, echo = TRUE, eval = TRUE}
+
+heatmap.enzyme.ko(ko="K02291",enzyme.name = "0_PS", map.gfh.halan = halan, 
+                  gene.expression = gene.expression, 
+                  precision = 78)
 
 ```
 
