@@ -9,12 +9,12 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-#Used packages. 
+# Used packages. 
 
 Load the packages that are used in this script. Several Bioconductor packages are used, such as *ballgown* and *limma* packages for reading the transcriptomic data and for executing the differential expression analysis, or *clusterProfiler* and *pathview* for performing enrichment analyses in GO terms and metabolic pathways in KEGG, respectively. 
 
 
-```{r, echo= TRUE, results = 'hide'}
+```{r, echo= TRUE, results = FALSE, message=FALSE, warning=FALSE}
 
 library(ballgown)
 library(limma)
@@ -25,7 +25,7 @@ library(pathview)
 
 Additionally, two CRAN packages are required for executing this script: ggplots and seqinr. Ggplots will be used to generate certain plots and seqinr is required to work with biological sequences. 
 
-```{r, echo= TRUE, results = 'hide'}
+```{r, echo= TRUE, results = FALSE, message=FALSE, warning=FALSE}
 
 library(gplots)
 library(seqinr)
@@ -34,7 +34,7 @@ library(seqinr)
 
 Finally, the annotation packages included in tartessos_RNAseq github folder need to be installed and loaded before starting the analysis. 
 
-```{r, echo= TRUE, results = 'hide'}
+```{r, echo= TRUE, results = FALSE, message=FALSE, warning=FALSE}
 
 install.packages("packages/org.Hlacustris.eg.db",repos = NULL)
 install.packages("packages/TxDb.Hlacustris.NCBI",repos = NULL)
@@ -44,7 +44,7 @@ library(TxDb.Hlacustris.NCBI)
 ```
 
 
-#Load genome sequence data 
+# Load genome sequence data 
 
 Sequences and their names will be extracted from *haematococcus_lacustris.fa* which contains the sequenced genome of **Haematococcus lacustris**.
 
@@ -67,7 +67,7 @@ hlacustris.genes <- as.data.frame(genes(txdb))
 ```
 
 
-#Differential expression analysis.  
+# Differential expression analysis.  
 
 Before starting the analysis, gene expression data has to be loaded.
 
@@ -157,7 +157,7 @@ points(fold.change[repressed.genes],log10.qval[repressed.genes],cex=0.7,col="blu
 ```
 
 
-#Correspondence between genome notation and NCBI notation.
+# Correspondence between genome notation and NCBI notation.
 
 Genome notation doesn't match with NCBI notation, which can lead to confusion at some steps of the analysis. 
 
@@ -173,7 +173,7 @@ names(gfh) <- halan
 
 ```
 
-#KEEG pathway enrichment
+# KEEG pathway enrichment
 
 KO ids are extracted from *org.Hlacustris.eg.db*.
 
@@ -240,7 +240,7 @@ pathview(gene.data = sort(genes.pathway,decreasing = TRUE),
 
 # Identification of transcription factors and promoter sequences. 
 
-##Identification of transcription factor genes aspirants.
+## Identification of transcription factor genes aspirants.
 
 In order to make the analysis easier, a simple function is created to extract the genes which PFAM id match with the target one. 
 
