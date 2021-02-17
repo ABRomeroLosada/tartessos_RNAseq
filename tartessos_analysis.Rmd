@@ -347,9 +347,9 @@ carotenoids.promoters <- promoter.sequence(genes.names = carotenoids.genes,
 
 ```
 
-##Functions for for specific pathways analysis.
+## Functions for for specific pathways analysis.
 
-###Barplots
+### Barplots
 
 Two different functions were created in order to generate barplots representing the expression level of specific genes in both conditions. One of them, receive as input the genome notation type name of the target gene.
 
@@ -459,7 +459,7 @@ barplot.enzyme.ko(ko="K02291",enzyme.name = "0_PS", map.gfh.halan = halan,
 
 ```
 
-###Heatmaps.
+### Heatmaps.
 
 Heatmaps were created to show the expression level of each enzyme represented in the figures included in the final paper. The function used to generate them recieve as input the KO id of a desirable enzyme and, as the **barplot.enzyme.ko** function does, it will generate a different heatmap for each gene related to the target KO.
 
