@@ -9,7 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-# Used packages. 
+## Used packages. 
 
 Load the packages that are used in this script. Several Bioconductor packages are used, such as *ballgown* and *limma* packages for reading the transcriptomic data and for executing the differential expression analysis, or *clusterProfiler* and *pathview* for performing enrichment analyses in GO terms and metabolic pathways in KEGG, respectively. 
 
@@ -44,7 +44,7 @@ library(TxDb.Hlacustris.NCBI)
 ```
 
 
-# Load genome sequence data 
+## Load genome sequence data 
 
 Sequences and their names will be extracted from *haematococcus_lacustris.fa* which contains the sequenced genome of **Haematococcus lacustris**.
 
@@ -67,7 +67,7 @@ hlacustris.genes <- as.data.frame(genes(txdb))
 ```
 
 
-# Differential expression analysis.  
+## Differential expression analysis.  
 
 Before starting the analysis, gene expression data has to be loaded.
 
@@ -157,7 +157,7 @@ points(fold.change[repressed.genes],log10.qval[repressed.genes],cex=0.7,col="blu
 ```
 
 
-# Correspondence between genome notation and NCBI notation.
+## Correspondence between genome notation and NCBI notation.
 
 Genome notation doesn't match with NCBI notation, which can lead to confusion at some steps of the analysis. 
 
@@ -173,7 +173,7 @@ names(gfh) <- halan
 
 ```
 
-# KEEG pathway enrichment
+## KEEG pathway enrichment
 
 KO ids are extracted from *org.Hlacustris.eg.db*.
 
@@ -212,7 +212,7 @@ write.table(x = as.data.frame(pathway.enrichment),
 
 ```
 
-## Graphical representation of pathways
+### Graphical representation of pathways
 
 At first place, a new variable called *genes.pathway* is defined. Each element of this variable correspond to a different gene and it will contain a different number depending on whether or not that gene is activated. The value -1 will be given to repressed genes, +1 to activated ones and 0 to neutral ones. 
 
@@ -238,9 +238,9 @@ pathview(gene.data = sort(genes.pathway,decreasing = TRUE),
 ```
 
 
-# Identification of transcription factors and promoter sequences. 
+## Identification of transcription factors and promoter sequences. 
 
-## Identification of transcription factor genes aspirants.
+### Identification of transcription factor genes aspirants.
 
 In order to make the analysis easier, a simple function is created to extract the genes which PFAM id match with the target one. 
 
@@ -285,7 +285,7 @@ ap2.non.diff <- length(AP2.genes) - ap2.activated - ap2.repressed
 This analysis is executed to all the possible transcription factors families.
 
 
-# Extraction of promoter sequences of targets genes.
+## Extraction of promoter sequences of targets genes.
 
 The following function is used to achieve that goal. To a given list of gene names, it extracts their promoter sequences (1000 bp upstream from TSS) using the sequenced genome.
 
@@ -337,10 +337,10 @@ For example, it was used with the carotenoids biosynthesis key enzime genes.
 carotenoids.genes <- c("HaLaN_05222", "HaLaN_06917", "HaLaN_19207", "HaLaN_29333", "HaLaN_01499", "HaLaN_15035",
                        "HaLaN_05151", "HaLaN_15758", "HaLaN_04875")
 
-promoter.sequence(genes.names = carotenoids.genes, 
-                  genes.info = hlacustris.genes , 
-                  genome.seqs = hlacustris.seqs,
-                  file.name ="carotenoids_promoters.fa")
+carotenoids.promoters <- promoter.sequence(genes.names = carotenoids.genes, 
+                        genes.info = hlacustris.genes , 
+                        genome.seqs = hlacustris.seqs,
+                        file.name ="carotenoids_promoters.fa")
 
 ```
 
